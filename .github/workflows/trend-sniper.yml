@@ -1,4 +1,4 @@
-name: Trend Sniper Scanner
+name: Trend Sniper AI v6 Multi-Timeframe
 
 on:
   schedule:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run scanner
+      - name: Run Trend Sniper AI v6
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
