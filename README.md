@@ -11,3 +11,4 @@ Scanner gratuito con GitHub Actions + Telegram.
 - `TELEGRAM_CHAT_ID`
 
 Uso demo/didattico. Controlla sempre TradingView prima di entrare.
+Test
