@@ -335,4 +335,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    send_telegram(
+        "✅ Trend Sniper AI\n\n"
+        "Test completato con successo!\n\n"
+        "Il collegamento GitHub → Telegram funziona."
+    )
