@@ -1,6 +1,7 @@
-# Trend Sniper AI v7 TEST
+# Trend Sniper AI v8 SIMPLE TEST
 # GitHub Actions + Telegram
 # Multi-timeframe: 4H, 1H, 15M, 5M
+# Semplice: 1 Stop Loss + 1 Take Profit RR 1:4
 # Demo/testing only. Non è consulenza finanziaria.
 
 import os
@@ -312,16 +313,9 @@ def analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg):
         side, score = "SELL", short_score
 
     result = {
-        "symbol": symbol_name,
-        "timeframe": timeframe,
-        "profile": cfg["profile"],
-        "status": side,
-        "score": score,
-        "grade": setup_grade(score),
-        "price": close,
-        "rsi": rsi_values[-1],
-        "adx": adx_values[-1],
-        "candle_type": candle_type,
+        "symbol": symbol_name, "timeframe": timeframe, "profile": cfg["profile"], "status": side,
+        "score": score, "grade": setup_grade(score), "price": close,
+        "rsi": rsi_values[-1], "adx": adx_values[-1], "candle_type": candle_type,
         "trend": "LONG" if ema_long else "SHORT" if ema_short else "NEUTRALE",
         "structure": "BULLISH" if structure_long else "BEARISH" if structure_short else "NEUTRALE",
         "candle_time": datetime.fromtimestamp(last["t"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -344,19 +338,17 @@ def analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg):
     if side == "BUY":
         sl = min(entry - atr_values[-1] * ATR_MULT, min(r["low"] for r in rows[-SWING_STOP_LEN:]))
         risk = entry - sl
-        tp1, tp2, tp3, tp4 = entry + risk, entry + risk * 2, entry + risk * 3, entry + risk * RR_FINAL
+        tp = entry + risk * RR_FINAL
     else:
         sl = max(entry + atr_values[-1] * ATR_MULT, max(r["high"] for r in rows[-SWING_STOP_LEN:]))
         risk = sl - entry
-        tp1, tp2, tp3, tp4 = entry - risk, entry - risk * 2, entry - risk * 3, entry - risk * RR_FINAL
+        tp = entry - risk * RR_FINAL
 
     result.update({
         "entry": entry,
         "sl": sl,
-        "tp1": tp1,
-        "tp2": tp2,
-        "tp3": tp3,
-        "tp4": tp4,
+        "tp": tp,
+        "rr": RR_FINAL,
         "risk_money": ACCOUNT_SIZE * cfg["risk_percent"] / 100,
         "lot": estimate_lot(symbol_name, entry, sl, cfg["risk_percent"]),
     })
@@ -370,7 +362,7 @@ def telegram_alert(r):
     lot_label = "Unità indicative" if r["symbol"] in ["XAUUSD", "US100", "BTCUSD", "ETHUSD"] else "Lotto indicativo"
 
     return (
-        f"🚨 <b>TREND SNIPER AI v7 TEST</b>\n\n"
+        f"🚨 <b>TREND SNIPER AI v8 SIMPLE TEST</b>\n\n"
         f"{emoji} <b>{r['status']} {r['symbol']}</b>\n"
         f"Timeframe: <b>{r['timeframe']}</b> - {r['profile']}\n"
         f"{stars}\n"
@@ -379,10 +371,7 @@ def telegram_alert(r):
         f"<b>Livelli operativi</b>\n"
         f"Entry: <b>{fmt(r['entry'])}</b>\n"
         f"Stop Loss: <b>{fmt(r['sl'])}</b>\n"
-        f"TP1 1R: <b>{fmt(r['tp1'])}</b>\n"
-        f"TP2 / Break-even: <b>{fmt(r['tp2'])}</b>\n"
-        f"TP3 3R: <b>{fmt(r['tp3'])}</b>\n"
-        f"TP4 1:{RR_FINAL}: <b>{fmt(r['tp4'])}</b>\n\n"
+        f"Take Profit 1:{RR_FINAL}: <b>{fmt(r['tp'])}</b>\n\n"
         f"<b>Gestione rischio demo</b>\n"
         f"Capitale demo: {ACCOUNT_SIZE} €\n"
         f"Rischio test: {r['risk_percent']}%\n"
@@ -403,7 +392,7 @@ def save_signal_csv(r):
     exists = SIGNALS_FILE.exists()
     fields = [
         "created_at_utc", "symbol", "timeframe", "profile", "side", "score", "grade",
-        "entry", "sl", "tp1", "tp2", "tp3", "tp4", "risk_percent", "risk_money",
+        "entry", "sl", "tp", "rr", "risk_percent", "risk_money",
         "lot", "trend", "structure", "candle_type", "rsi", "adx", "candle_time"
     ]
 
@@ -413,35 +402,23 @@ def save_signal_csv(r):
             writer.writeheader()
         writer.writerow({
             "created_at_utc": datetime.now(timezone.utc).isoformat(),
-            "symbol": r["symbol"],
-            "timeframe": r["timeframe"],
-            "profile": r["profile"],
-            "side": r["status"],
-            "score": r["score"],
-            "grade": r["grade"],
-            "entry": r["entry"],
-            "sl": r["sl"],
-            "tp1": r["tp1"],
-            "tp2": r["tp2"],
-            "tp3": r["tp3"],
-            "tp4": r["tp4"],
-            "risk_percent": r["risk_percent"],
-            "risk_money": r["risk_money"],
-            "lot": r["lot"],
-            "trend": r["trend"],
-            "structure": r["structure"],
-            "candle_type": r["candle_type"],
-            "rsi": r["rsi"],
-            "adx": r["adx"],
+            "symbol": r["symbol"], "timeframe": r["timeframe"], "profile": r["profile"],
+            "side": r["status"], "score": r["score"], "grade": r["grade"],
+            "entry": r["entry"], "sl": r["sl"], "tp": r["tp"], "rr": r["rr"],
+            "risk_percent": r["risk_percent"], "risk_money": r["risk_money"],
+            "lot": r["lot"], "trend": r["trend"], "structure": r["structure"],
+            "candle_type": r["candle_type"], "rsi": r["rsi"], "adx": r["adx"],
             "candle_time": r["candle_time"],
         })
 
 
 def test_message():
     return (
-        "✅ <b>Trend Sniper AI v7 TEST</b>\n\n"
+        "✅ <b>Trend Sniper AI v8 SIMPLE TEST</b>\n\n"
         "Telegram collegato correttamente.\n"
         "Scanner multi-timeframe attivo.\n\n"
+        "Messaggi semplificati:\n"
+        "1 Stop Loss + 1 Take Profit\n"
         "Timeframe: 4H, 1H, 15M, 5M\n"
         "Journal automatico: signals.csv"
     )

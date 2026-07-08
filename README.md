@@ -1,6 +1,6 @@
-# Trend Sniper AI v7 TEST
+# Trend Sniper AI v8 SIMPLE TEST
 
-Scanner gratuito con GitHub Actions + Telegram.
+Versione semplificata per partire in demo.
 
 ## Attivo
 - 4H = principale
@@ -8,16 +8,13 @@ Scanner gratuito con GitHub Actions + Telegram.
 - 15M = solo test rapido
 - 5M = solo pratica/rumore
 
-## Telegram
-Ogni alert contiene:
-- simbolo
+## Messaggio Telegram
+Ogni alert contiene solo:
+- BUY / SELL
 - timeframe
-- BUY/SELL
-- score
 - entry
 - stop loss
-- TP1, TP2, TP3, TP4
-- rischio
+- take profit finale 1:4
 - lotto/unità indicativo
 - motivo del segnale
 
@@ -25,6 +22,9 @@ Ogni alert contiene:
 Ogni segnale inviato viene salvato in:
 
 `signals.csv`
+
+## Journal manuale
+Usa il file Excel separato per segnare ingresso, esito e note.
 
 ## Test Telegram
 Nel file `trend_sniper.py`:
@@ -42,5 +42,5 @@ TEST_MODE = False
 ```
 
 ## Regola
-Solo conto demo.  
-Non usare il 5M per decidere trade reali: serve solo per test/pratica.
+Solo conto demo.
+Niente TP multipli e niente break-even nella prima fase.
