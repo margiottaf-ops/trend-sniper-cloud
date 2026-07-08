@@ -1,9 +1,10 @@
-# Trend Sniper AI v6 - Multi-Timeframe TEST
+# Trend Sniper AI v7 TEST
 # GitHub Actions + Telegram
-# Timeframe: 4H, 1H, 15M, 5M
-# Uso demo/didattico. Non è consulenza finanziaria.
+# Multi-timeframe: 4H, 1H, 15M, 5M
+# Demo/testing only. Non è consulenza finanziaria.
 
 import os
+import csv
 import json
 import time
 import urllib.request
@@ -12,11 +13,11 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 STATE_FILE = Path("state.json")
+SIGNALS_FILE = Path("signals.csv")
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-# Metti True solo per testare Telegram.
 TEST_MODE = False
 
 ACCOUNT_SIZE = 1000
@@ -36,51 +37,11 @@ WATCHLIST = {
     "ETHUSD": "ETH-USD",
 }
 
-# enabled=True/False per accendere o spegnere un timeframe.
-# 4H = principale
-# 1H = test secondario
-# 15M/5M = solo raccolta dati/demo, molto più rumorosi
 PROFILES = {
-    "4H": {
-        "enabled": True,
-        "source_interval": "1h",
-        "period": "60d",
-        "resample_seconds": 4 * 3600,
-        "min_score": 86,
-        "pull_atr": 0.60,
-        "adx_min": 20,
-        "risk_percent": 1.00,
-    },
-    "1H": {
-        "enabled": True,
-        "source_interval": "1h",
-        "period": "60d",
-        "resample_seconds": 1 * 3600,
-        "min_score": 90,
-        "pull_atr": 0.55,
-        "adx_min": 22,
-        "risk_percent": 0.50,
-    },
-    "15M": {
-        "enabled": True,
-        "source_interval": "15m",
-        "period": "30d",
-        "resample_seconds": 15 * 60,
-        "min_score": 94,
-        "pull_atr": 0.45,
-        "adx_min": 25,
-        "risk_percent": 0.25,
-    },
-    "5M": {
-        "enabled": True,
-        "source_interval": "5m",
-        "period": "7d",
-        "resample_seconds": 5 * 60,
-        "min_score": 97,
-        "pull_atr": 0.35,
-        "adx_min": 28,
-        "risk_percent": 0.10,
-    },
+    "4H":  {"enabled": True, "source_interval": "1h",  "period": "60d", "resample_seconds": 14400, "min_score": 86, "pull_atr": 0.60, "adx_min": 20, "risk_percent": 1.00, "profile": "PRINCIPALE"},
+    "1H":  {"enabled": True, "source_interval": "1h",  "period": "60d", "resample_seconds": 3600,  "min_score": 90, "pull_atr": 0.55, "adx_min": 22, "risk_percent": 0.50, "profile": "TEST SECONDARIO"},
+    "15M": {"enabled": True, "source_interval": "15m", "period": "30d", "resample_seconds": 900,   "min_score": 94, "pull_atr": 0.45, "adx_min": 25, "risk_percent": 0.25, "profile": "SOLO TEST RAPIDO"},
+    "5M":  {"enabled": True, "source_interval": "5m",  "period": "7d",  "resample_seconds": 300,   "min_score": 97, "pull_atr": 0.35, "adx_min": 28, "risk_percent": 0.10, "profile": "SOLO PRATICA"},
 }
 
 EMA_FAST = 20
@@ -128,16 +89,12 @@ def send_telegram(message):
 
     req = urllib.request.Request(url, data=data, method="POST")
     with urllib.request.urlopen(req, timeout=30) as r:
-        response = r.read().decode("utf-8")
-        print(response)
+        print(r.read().decode("utf-8"))
     return True
 
 
 def yahoo_download(symbol, period, interval):
-    url = (
-        "https://query1.finance.yahoo.com/v8/finance/chart/"
-        f"{urllib.parse.quote(symbol)}?range={period}&interval={interval}"
-    )
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?range={period}&interval={interval}"
     data = request_json(url)
 
     if not data.get("chart") or not data["chart"].get("result"):
@@ -149,31 +106,17 @@ def yahoo_download(symbol, period, interval):
 
     rows = []
     for i, ts in enumerate(timestamps):
-        o = q["open"][i]
-        h = q["high"][i]
-        l = q["low"][i]
-        c = q["close"][i]
+        o, h, l, c = q["open"][i], q["high"][i], q["low"][i], q["close"][i]
         v = q.get("volume", [0] * len(timestamps))[i] or 0
-
         if o is None or h is None or l is None or c is None:
             continue
-
-        rows.append({
-            "t": int(ts),
-            "open": float(o),
-            "high": float(h),
-            "low": float(l),
-            "close": float(c),
-            "volume": float(v),
-        })
+        rows.append({"t": int(ts), "open": float(o), "high": float(h), "low": float(l), "close": float(c), "volume": float(v)})
     return rows
 
 
 def resample_rows(rows, seconds):
     if not rows:
         return []
-
-    # 1H, 15M, 5M arrivano già da Yahoo nel timeframe richiesto.
     if seconds in (3600, 900, 300):
         out = rows[:]
         now = int(time.time())
@@ -185,14 +128,7 @@ def resample_rows(rows, seconds):
     for r in rows:
         b = r["t"] - (r["t"] % seconds)
         if b not in buckets:
-            buckets[b] = {
-                "t": b,
-                "open": r["open"],
-                "high": r["high"],
-                "low": r["low"],
-                "close": r["close"],
-                "volume": r["volume"],
-            }
+            buckets[b] = {"t": b, "open": r["open"], "high": r["high"], "low": r["low"], "close": r["close"], "volume": r["volume"]}
         else:
             x = buckets[b]
             x["high"] = max(x["high"], r["high"])
@@ -216,24 +152,15 @@ def ema(values, length):
 
 
 def rsi(values, length=14):
-    gains = [0]
-    losses = [0]
-
+    gains, losses = [0], [0]
     for i in range(1, len(values)):
         d = values[i] - values[i - 1]
         gains.append(max(d, 0))
         losses.append(max(-d, 0))
-
-    avg_gain = ema(gains, length)
-    avg_loss = ema(losses, length)
-
+    avg_gain, avg_loss = ema(gains, length), ema(losses, length)
     out = []
     for g, l in zip(avg_gain, avg_loss):
-        if l == 0:
-            out.append(100)
-        else:
-            rs = g / l
-            out.append(100 - (100 / (1 + rs)))
+        out.append(100 if l == 0 else 100 - (100 / (1 + g / l)))
     return out
 
 
@@ -244,92 +171,51 @@ def atr(rows, length=14):
             tr.append(r["high"] - r["low"])
         else:
             pc = rows[i - 1]["close"]
-            tr.append(max(
-                r["high"] - r["low"],
-                abs(r["high"] - pc),
-                abs(r["low"] - pc),
-            ))
+            tr.append(max(r["high"] - r["low"], abs(r["high"] - pc), abs(r["low"] - pc)))
     return ema(tr, length)
 
 
 def adx(rows, length=14):
-    plus_dm = [0]
-    minus_dm = [0]
-    tr = [rows[0]["high"] - rows[0]["low"]]
-
+    plus_dm, minus_dm, tr = [0], [0], [rows[0]["high"] - rows[0]["low"]]
     for i in range(1, len(rows)):
         up = rows[i]["high"] - rows[i - 1]["high"]
         down = rows[i - 1]["low"] - rows[i]["low"]
-
         plus_dm.append(up if up > down and up > 0 else 0)
         minus_dm.append(down if down > up and down > 0 else 0)
-
-        tr.append(max(
-            rows[i]["high"] - rows[i]["low"],
-            abs(rows[i]["high"] - rows[i - 1]["close"]),
-            abs(rows[i]["low"] - rows[i - 1]["close"]),
-        ))
-
-    atr_s = ema(tr, length)
-    plus_s = ema(plus_dm, length)
-    minus_s = ema(minus_dm, length)
-
+        tr.append(max(rows[i]["high"] - rows[i]["low"], abs(rows[i]["high"] - rows[i - 1]["close"]), abs(rows[i]["low"] - rows[i - 1]["close"])))
+    atr_s, plus_s, minus_s = ema(tr, length), ema(plus_dm, length), ema(minus_dm, length)
     dx = []
     for a, p, m in zip(atr_s, plus_s, minus_s):
         if a == 0 or p + m == 0:
             dx.append(0)
         else:
-            plus_di = 100 * p / a
-            minus_di = 100 * m / a
+            plus_di, minus_di = 100 * p / a, 100 * m / a
             dx.append(100 * abs(plus_di - minus_di) / (plus_di + minus_di))
-
     return ema(dx, length)
 
 
 def detect_structure(rows, pivot_len=6):
-    structure = 0
-    last_high = None
-    last_low = None
-
+    structure, last_high, last_low = 0, None, None
     for i in range(pivot_len, len(rows) - pivot_len):
-        hi_window = [x["high"] for x in rows[i - pivot_len:i + pivot_len + 1]]
-        lo_window = [x["low"] for x in rows[i - pivot_len:i + pivot_len + 1]]
-
-        if rows[i]["high"] == max(hi_window):
+        if rows[i]["high"] == max(x["high"] for x in rows[i - pivot_len:i + pivot_len + 1]):
             last_high = rows[i]["high"]
-        if rows[i]["low"] == min(lo_window):
+        if rows[i]["low"] == min(x["low"] for x in rows[i - pivot_len:i + pivot_len + 1]):
             last_low = rows[i]["low"]
-
         if last_high is not None and rows[i]["close"] > last_high:
             structure = 1
         if last_low is not None and rows[i]["close"] < last_low:
             structure = -1
-
     return structure
 
 
 def candle_confirm(rows):
-    last = rows[-1]
-    prev = rows[-2]
-
+    last, prev = rows[-1], rows[-2]
     body = abs(last["close"] - last["open"])
     upper = last["high"] - max(last["open"], last["close"])
     lower = min(last["open"], last["close"]) - last["low"]
 
-    bull_engulf = (
-        last["close"] > last["open"]
-        and prev["close"] < prev["open"]
-        and last["close"] >= prev["open"]
-        and last["open"] <= prev["close"]
-    )
-
-    bear_engulf = (
-        last["close"] < last["open"]
-        and prev["close"] > prev["open"]
-        and last["close"] <= prev["open"]
-        and last["open"] >= prev["close"]
-    )
-
+    bull_engulf = last["close"] > last["open"] and prev["close"] < prev["open"] and last["close"] >= prev["open"] and last["open"] <= prev["close"]
+    bear_engulf = last["close"] < last["open"] and prev["close"] > prev["open"] and last["close"] <= prev["open"] and last["open"] >= prev["close"]
     hammer = lower > body * 2 and upper <= body * 1.25 and last["close"] > last["open"]
     shooting = upper > body * 2 and lower <= body * 1.25 and last["close"] < last["open"]
 
@@ -376,10 +262,8 @@ def fmt(x):
 def estimate_lot(symbol, entry, sl, risk_percent):
     risk_money = ACCOUNT_SIZE * risk_percent / 100
     distance = abs(entry - sl)
-
     if distance <= 0:
         return 0.0
-
     if "JPY" in symbol:
         pip_size = 0.01
     elif symbol == "XAUUSD":
@@ -388,10 +272,8 @@ def estimate_lot(symbol, entry, sl, risk_percent):
         return round(risk_money / distance, 3)
     else:
         pip_size = 0.0001
-
     pips = distance / pip_size
-    lot = risk_money / (pips * 10) if pips > 0 else 0.0
-    return round(lot, 2)
+    return round(risk_money / (pips * 10), 2) if pips > 0 else 0.0
 
 
 def analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg):
@@ -399,90 +281,40 @@ def analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg):
     rows = resample_rows(raw, cfg["resample_seconds"])
 
     if len(rows) < 220:
-        return {
-            "symbol": symbol_name,
-            "timeframe": timeframe,
-            "status": "NO DATA",
-            "score": 0,
-            "grade": "N/A",
-            "note": f"Dati insufficienti: {len(rows)} barre",
-        }
+        return {"symbol": symbol_name, "timeframe": timeframe, "status": "NO DATA", "score": 0, "grade": "N/A", "note": f"Dati insufficienti: {len(rows)} barre"}
 
     closes = [r["close"] for r in rows]
+    ema20, ema50, ema200 = ema(closes, EMA_FAST), ema(closes, EMA_MID), ema(closes, EMA_SLOW)
+    rsi_values, atr_values, adx_values = rsi(closes, RSI_LEN), atr(rows, ATR_LEN), adx(rows, ADX_LEN)
 
-    ema20 = ema(closes, EMA_FAST)
-    ema50 = ema(closes, EMA_MID)
-    ema200 = ema(closes, EMA_SLOW)
-    rsi_values = rsi(closes, RSI_LEN)
-    atr_values = atr(rows, ATR_LEN)
-    adx_values = adx(rows, ADX_LEN)
-
-    last = rows[-1]
-    close = last["close"]
+    last, close = rows[-1], rows[-1]["close"]
 
     ema_long = close > ema200[-1] and ema20[-1] > ema50[-1] and ema50[-1] > ema200[-1]
     ema_short = close < ema200[-1] and ema20[-1] < ema50[-1] and ema50[-1] < ema200[-1]
 
     rsi_long = 50 < rsi_values[-1] < 72
     rsi_short = 28 < rsi_values[-1] < 50
-
     adx_ok = adx_values[-1] >= cfg["adx_min"]
     pull_ok = abs(close - ema20[-1]) <= atr_values[-1] * cfg["pull_atr"]
 
     struct = detect_structure(rows, PIVOT_LEN)
-    structure_long = struct == 1
-    structure_short = struct == -1
-
+    structure_long, structure_short = struct == 1, struct == -1
     bull_confirm, bear_confirm, candle_type = candle_confirm(rows)
 
-    long_score = 0
-    long_score += 30 if ema_long else 0
-    long_score += 15 if structure_long else 0
-    long_score += 15 if rsi_long else 0
-    long_score += 10 if adx_ok else 0
-    long_score += 15 if pull_ok else 0
-    long_score += 10 if bull_confirm else 0
-    long_score += 5
+    long_score = (30 if ema_long else 0) + (15 if structure_long else 0) + (15 if rsi_long else 0) + (10 if adx_ok else 0) + (15 if pull_ok else 0) + (10 if bull_confirm else 0) + 5
+    short_score = (30 if ema_short else 0) + (15 if structure_short else 0) + (15 if rsi_short else 0) + (10 if adx_ok else 0) + (15 if pull_ok else 0) + (10 if bear_confirm else 0) + 5
 
-    short_score = 0
-    short_score += 30 if ema_short else 0
-    short_score += 15 if structure_short else 0
-    short_score += 15 if rsi_short else 0
-    short_score += 10 if adx_ok else 0
-    short_score += 15 if pull_ok else 0
-    short_score += 10 if bear_confirm else 0
-    short_score += 5
+    side, score = "WAIT", max(long_score, short_score)
 
-    side = "WAIT"
-    score = max(long_score, short_score)
-
-    if (
-        long_score >= cfg["min_score"]
-        and ema_long
-        and structure_long
-        and rsi_long
-        and adx_ok
-        and pull_ok
-        and bull_confirm
-    ):
-        side = "BUY"
-        score = long_score
-
-    elif (
-        short_score >= cfg["min_score"]
-        and ema_short
-        and structure_short
-        and rsi_short
-        and adx_ok
-        and pull_ok
-        and bear_confirm
-    ):
-        side = "SELL"
-        score = short_score
+    if long_score >= cfg["min_score"] and ema_long and structure_long and rsi_long and adx_ok and pull_ok and bull_confirm:
+        side, score = "BUY", long_score
+    elif short_score >= cfg["min_score"] and ema_short and structure_short and rsi_short and adx_ok and pull_ok and bear_confirm:
+        side, score = "SELL", short_score
 
     result = {
         "symbol": symbol_name,
         "timeframe": timeframe,
+        "profile": cfg["profile"],
         "status": side,
         "score": score,
         "grade": setup_grade(score),
@@ -509,21 +341,14 @@ def analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg):
         return result
 
     entry = close
-
     if side == "BUY":
-        sl = min(entry - atr_values[-1] * ATR_MULT, min([r["low"] for r in rows[-SWING_STOP_LEN:]]))
+        sl = min(entry - atr_values[-1] * ATR_MULT, min(r["low"] for r in rows[-SWING_STOP_LEN:]))
         risk = entry - sl
-        tp1 = entry + risk
-        tp2 = entry + risk * 2
-        tp3 = entry + risk * 3
-        tp4 = entry + risk * RR_FINAL
+        tp1, tp2, tp3, tp4 = entry + risk, entry + risk * 2, entry + risk * 3, entry + risk * RR_FINAL
     else:
-        sl = max(entry + atr_values[-1] * ATR_MULT, max([r["high"] for r in rows[-SWING_STOP_LEN:]]))
+        sl = max(entry + atr_values[-1] * ATR_MULT, max(r["high"] for r in rows[-SWING_STOP_LEN:]))
         risk = sl - entry
-        tp1 = entry - risk
-        tp2 = entry - risk * 2
-        tp3 = entry - risk * 3
-        tp4 = entry - risk * RR_FINAL
+        tp1, tp2, tp3, tp4 = entry - risk, entry - risk * 2, entry - risk * 3, entry - risk * RR_FINAL
 
     result.update({
         "entry": entry,
@@ -535,36 +360,19 @@ def analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg):
         "risk_money": ACCOUNT_SIZE * cfg["risk_percent"] / 100,
         "lot": estimate_lot(symbol_name, entry, sl, cfg["risk_percent"]),
     })
-
     return result
 
 
 def telegram_alert(r):
     emoji = "🟢" if r["status"] == "BUY" else "🔴"
-
-    if r["timeframe"] == "4H":
-        profile_label = "PRINCIPALE"
-    elif r["timeframe"] == "1H":
-        profile_label = "TEST SECONDARIO"
-    else:
-        profile_label = "SOLO TEST RAPIDO"
-
     stars = "★★★★★" if r["score"] >= 97 else "★★★★☆" if r["score"] >= 94 else "★★★☆☆"
-
-    checks = "\n".join([
-        f"{'✅' if ok else '❌'} {name}"
-        for name, ok in r["checks"].items()
-    ])
-
-    if r["symbol"] in ["XAUUSD", "US100", "BTCUSD", "ETHUSD"]:
-        lot_label = "Unità indicative"
-    else:
-        lot_label = "Lotto indicativo"
+    checks = "\n".join(f"{'✅' if ok else '❌'} {name}" for name, ok in r["checks"].items())
+    lot_label = "Unità indicative" if r["symbol"] in ["XAUUSD", "US100", "BTCUSD", "ETHUSD"] else "Lotto indicativo"
 
     return (
-        f"🚨 <b>TREND SNIPER AI v6 - TEST</b>\n\n"
+        f"🚨 <b>TREND SNIPER AI v7 TEST</b>\n\n"
         f"{emoji} <b>{r['status']} {r['symbol']}</b>\n"
-        f"Timeframe: <b>{r['timeframe']}</b> - {profile_label}\n"
+        f"Timeframe: <b>{r['timeframe']}</b> - {r['profile']}\n"
         f"{stars}\n"
         f"Qualità: <b>{r['grade']} - {r['score']}/100</b>\n"
         f"Candela chiusa: {r['candle_time']}\n\n"
@@ -587,16 +395,55 @@ def telegram_alert(r):
         f"RSI: {r['rsi']:.2f}\n"
         f"ADX: {r['adx']:.2f}\n\n"
         f"{checks}\n\n"
-        f"⚠️ Demo only. Apri TradingView e conferma prima di entrare."
+        f"⚠️ Demo only. Conferma su TradingView prima di entrare."
     )
+
+
+def save_signal_csv(r):
+    exists = SIGNALS_FILE.exists()
+    fields = [
+        "created_at_utc", "symbol", "timeframe", "profile", "side", "score", "grade",
+        "entry", "sl", "tp1", "tp2", "tp3", "tp4", "risk_percent", "risk_money",
+        "lot", "trend", "structure", "candle_type", "rsi", "adx", "candle_time"
+    ]
+
+    with SIGNALS_FILE.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        if not exists:
+            writer.writeheader()
+        writer.writerow({
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "symbol": r["symbol"],
+            "timeframe": r["timeframe"],
+            "profile": r["profile"],
+            "side": r["status"],
+            "score": r["score"],
+            "grade": r["grade"],
+            "entry": r["entry"],
+            "sl": r["sl"],
+            "tp1": r["tp1"],
+            "tp2": r["tp2"],
+            "tp3": r["tp3"],
+            "tp4": r["tp4"],
+            "risk_percent": r["risk_percent"],
+            "risk_money": r["risk_money"],
+            "lot": r["lot"],
+            "trend": r["trend"],
+            "structure": r["structure"],
+            "candle_type": r["candle_type"],
+            "rsi": r["rsi"],
+            "adx": r["adx"],
+            "candle_time": r["candle_time"],
+        })
 
 
 def test_message():
     return (
-        "✅ <b>Trend Sniper AI v6 Multi-Timeframe TEST</b>\n\n"
+        "✅ <b>Trend Sniper AI v7 TEST</b>\n\n"
         "Telegram collegato correttamente.\n"
-        "GitHub Actions → Telegram funziona.\n\n"
-        "Timeframe attivi: 4H, 1H, 15M, 5M"
+        "Scanner multi-timeframe attivo.\n\n"
+        "Timeframe: 4H, 1H, 15M, 5M\n"
+        "Journal automatico: signals.csv"
     )
 
 
@@ -613,31 +460,25 @@ def main():
         if not cfg["enabled"]:
             continue
 
-        logs.append(f"===== TIMEFRAME {timeframe} =====")
+        logs.append(f"===== TIMEFRAME {timeframe} | {cfg['profile']} =====")
 
         for symbol_name, yahoo_symbol in WATCHLIST.items():
             try:
-                result = analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg)
-
+                r = analyze_symbol(symbol_name, yahoo_symbol, timeframe, cfg)
                 logs.append(
-                    f"{timeframe} | {symbol_name}: {result['status']} | "
-                    f"Score {result['score']} | Grade {result['grade']} | "
-                    f"Trend {result.get('trend', '-')}"
+                    f"{timeframe} | {symbol_name}: {r['status']} | Score {r['score']} | "
+                    f"Grade {r['grade']} | Trend {r.get('trend', '-')}"
                 )
 
-                if result["status"] in ["BUY", "SELL"]:
-                    key = (
-                        f"{result['timeframe']}_"
-                        f"{result['symbol']}_"
-                        f"{result['status']}_"
-                        f"{result['candle_id']}"
-                    )
+                if r["status"] in ["BUY", "SELL"]:
+                    key = f"{r['timeframe']}_{r['symbol']}_{r['status']}_{r['candle_id']}"
 
                     if state.get(key):
                         logs.append(f"{timeframe} | {symbol_name}: alert già inviato")
                         continue
 
-                    send_telegram(telegram_alert(result))
+                    send_telegram(telegram_alert(r))
+                    save_signal_csv(r)
                     state[key] = datetime.now(timezone.utc).isoformat()
                     alerts += 1
 
@@ -651,6 +492,7 @@ def main():
     save_state(state)
     print("\n".join(logs))
     print(f"Alert inviati: {alerts}")
+    print("File segnali:", SIGNALS_FILE if SIGNALS_FILE.exists() else "nessun segnale ancora")
 
 
 if __name__ == "__main__":

@@ -1,17 +1,30 @@
-# Trend Sniper AI v6 - Multi-Timeframe TEST
+# Trend Sniper AI v7 TEST
 
 Scanner gratuito con GitHub Actions + Telegram.
 
-## Timeframe attivi
+## Attivo
 - 4H = principale
 - 1H = test secondario
 - 15M = solo test rapido
-- 5M = solo pratica / rumore
+- 5M = solo pratica/rumore
 
-## Regola operativa
-Usare tutto solo su conto demo.  
-Il 4H resta il riferimento principale.  
-1H, 15M e 5M servono per raccogliere dati e confrontare statistiche nel Journal.
+## Telegram
+Ogni alert contiene:
+- simbolo
+- timeframe
+- BUY/SELL
+- score
+- entry
+- stop loss
+- TP1, TP2, TP3, TP4
+- rischio
+- lotto/unità indicativo
+- motivo del segnale
+
+## Journal automatico
+Ogni segnale inviato viene salvato in:
+
+`signals.csv`
 
 ## Test Telegram
 Nel file `trend_sniper.py`:
@@ -20,7 +33,7 @@ Nel file `trend_sniper.py`:
 TEST_MODE = True
 ```
 
-poi fai commit e lancia workflow.
+fai commit e lancia workflow.
 
 Dopo il test rimetti:
 
@@ -28,5 +41,6 @@ Dopo il test rimetti:
 TEST_MODE = False
 ```
 
-## Nota
-Ogni alert Telegram indica sempre il timeframe.
+## Regola
+Solo conto demo.  
+Non usare il 5M per decidere trade reali: serve solo per test/pratica.

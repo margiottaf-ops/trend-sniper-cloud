@@ -1,4 +1,4 @@
-name: Trend Sniper AI v6 Multi-Timeframe
+name: Trend Sniper AI v7 TEST
 
 on:
   schedule:
@@ -15,16 +15,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Trend Sniper AI v6
+      - name: Run Trend Sniper AI v7
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python trend_sniper.py
 
-      - name: Save state
+      - name: Save state and signals
         run: |
           git config user.name "trend-sniper-bot"
           git config user.email "trend-sniper-bot@example.com"
-          git add state.json || true
-          git commit -m "Update scanner state" || true
+          git add state.json signals.csv || true
+          git commit -m "Update scanner state and signals" || true
           git push || true
