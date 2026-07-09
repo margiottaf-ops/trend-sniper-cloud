@@ -41,8 +41,8 @@ WATCHLIST = {
 PROFILES = {
     "4H":  {"enabled": True, "source_interval": "1h",  "period": "60d", "resample_seconds": 14400, "min_score": 86, "pull_atr": 0.60, "adx_min": 20, "risk_percent": 1.00, "profile": "PRINCIPALE"},
     "1H":  {"enabled": True, "source_interval": "1h",  "period": "60d", "resample_seconds": 3600,  "min_score": 90, "pull_atr": 0.55, "adx_min": 22, "risk_percent": 0.50, "profile": "TEST SECONDARIO"},
-    "15M": {"enabled": True, "source_interval": "15m", "period": "30d", "resample_seconds": 900,   "min_score": 94, "pull_atr": 0.45, "adx_min": 25, "risk_percent": 0.25, "profile": "SOLO TEST RAPIDO"},
-    "5M":  {"enabled": True, "source_interval": "5m",  "period": "7d",  "resample_seconds": 300,   "min_score": 97, "pull_atr": 0.35, "adx_min": 28, "risk_percent": 0.10, "profile": "SOLO PRATICA"},
+    "15M": {"enabled": True, "source_interval": "15m", "period": "30d", "resample_seconds": 900,   "min_score": 90, "pull_atr": 0.65, "adx_min": 20, "risk_percent": 0.25, "profile": "SOLO TEST RAPIDO"},
+    "5M":  {"enabled": True, "source_interval": "5m",  "period": "7d",  "resample_seconds": 300,   "min_score": 92, "pull_atr": 0.70, "adx_min": 20, "risk_percent": 0.10, "profile": "SOLO PRATICA"},
 }
 
 EMA_FAST = 20
