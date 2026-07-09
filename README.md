@@ -1,30 +1,25 @@
-# Trend Sniper AI v8 SIMPLE TEST
+# Trend Sniper AI v8.1 Scheduled Scan
 
-Versione semplificata per partire in demo.
+Workflow ogni 5 minuti, ma analisi allineata alla chiusura delle candele.
 
-## Attivo
-- 4H = principale
-- 1H = test secondario
-- 15M = solo test rapido
-- 5M = solo pratica/rumore
+## Timeframe
+- 5M: ogni 5 minuti
+- 15M: ogni 15 minuti
+- 1H: ogni ora
+- 4H: ogni 4 ore
 
-## Messaggio Telegram
-Ogni alert contiene solo:
-- BUY / SELL
-- timeframe
-- entry
-- stop loss
-- take profit finale 1:4
-- lotto/unità indicativo
-- motivo del segnale
+## File generati
+- `signals.csv`: segnali inviati
+- `last_scan.json`: ultimo scan eseguito
 
-## Journal automatico
-Ogni segnale inviato viene salvato in:
+## Heartbeat
+Ogni ora il bot manda un messaggio Telegram "Trend Sniper AI online".
 
-`signals.csv`
+Per spegnerlo:
 
-## Journal manuale
-Usa il file Excel separato per segnare ingresso, esito e note.
+```python
+HEARTBEAT_ENABLED = False
+```
 
 ## Test Telegram
 Nel file `trend_sniper.py`:
@@ -33,14 +28,8 @@ Nel file `trend_sniper.py`:
 TEST_MODE = True
 ```
 
-fai commit e lancia workflow.
-
 Dopo il test rimetti:
 
 ```python
 TEST_MODE = False
 ```
-
-## Regola
-Solo conto demo.
-Niente TP multipli e niente break-even nella prima fase.
