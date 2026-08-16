@@ -1,10 +1,7 @@
 {
-  "scan_time_utc": "2026-08-16 16:45:36",
-  "active_timeframes": [
-    "15M",
-    "5M"
-  ],
+  "scan_time_utc": "2026-08-16 17:06:30",
+  "active_timeframes": [],
   "alerts_sent": 0,
-  "markets_checked": 22,
+  "markets_checked": 0,
   "heartbeat_enabled": true
 }
